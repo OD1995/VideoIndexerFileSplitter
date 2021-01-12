@@ -18,10 +18,14 @@ def orchestrator_function(context: df.DurableOrchestrationContext):
     logging.info("Orchestration started")
 
     ## Get data from the queue
-    qDict = json.loads(context._input)
-    fileURL = qDict['fileURL']
-    container = qDict['container']
-
+    logging.info("About to create dict from context._input 191")
+    logging.info(f"type(context._input): {type(context._input)}")
+    logging.info(f"context._input: {context._input}")
+    ## For some reason, there is a " at the start and end in the string
+    ##    [1:-1] removes this problem
+    fileURL,container = context._input[1:-1].split("__________")
+    logging.info(f"fileURL: {fileURL}")
+    logging.info(f"container: {container}")
     ## Work out file type
     if fileURL.lower().endswith(".mp4"):
         fileType = "MP4"
@@ -29,14 +33,11 @@ def orchestrator_function(context: df.DurableOrchestrationContext):
         fileType = "MP3"
     else:
         fileType = "neither"
+    logging.info(f"fileType: {fileType}")
 
     result = yield context.call_activity(
         'CreateChunks',
-        json.dumps([
-            fileType,
-            fileURL,
-            container
-        ])
+        f"{fileType}__________{fileURL}__________{container}"
     )
 
     return result

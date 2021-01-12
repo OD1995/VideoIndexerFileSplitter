@@ -19,7 +19,11 @@ import json
 
 def main(inputs: str) -> str:
     ## Arguments
-    fileType,fileURL,container = json.loads(inputs)
+    fileType,fileURL,container = inputs.split("__________")
+    logging.info(f"fileType: {fileType}")
+    logging.info(f"fileURL: {fileURL}")
+    logging.info(f"container: {container}")
+    logging.info("changes 10")
     ## Create bbs
     bbs = BlockBlobService(connection_string=os.getenv("fsevideosConnectionString"))
     ## Create SAS URL
@@ -28,6 +32,7 @@ def main(inputs: str) -> str:
         block_blob_service=bbs,
         container=container
     )
+    logging.info(f"sasURL: {sasURL}")
     ## Set the size of the clips you want (in seconds)
     chunk_length_secs = 3600
     ## Set file name to be used
@@ -39,13 +44,14 @@ def main(inputs: str) -> str:
         clip = AudioFileClip(sasURL)
     else:
         raise ValueError("wrong file type")
-
+    ## Get file extension
+    fileExtension = fileURL.split(".")[-1]
     ## Get number of chunks (files to be created)
     chunk_count = ceil(clip.duration / chunk_length_secs)
     ## Loop through the chunks
     for a in range(chunk_count):
         ## Create a string to add to the front of the file name for this chunk
-        fileSuffix = f"{a+1}of{chunk_count}"
+        filePrefix = f"{a+1}of{chunk_count}"
         ## If it's the last subclip, do last stopping point until end
         if a == chunk_count - 1:
             subclip = clip.subclip(
@@ -58,22 +64,26 @@ def main(inputs: str) -> str:
                             t_start=a*chunk_length_secs,
                             t_end=(a+1)*chunk_length_secs
                             )
-        logging.info(f"File: {fileSuffix}")
+        logging.info(f"File: {filePrefix}")
         logging.info(f"Duration: {subclip.duration} seconds")
         A = datetime.now()
         ## Download locally to temporary then upload to Azure
-        with tempfile.TemporaryDirectory() as dirpath:
-            tempFilePath = fr"{dirpath}/{fileSuffix}_{fileName}"
-            if fileType == "MP4":
-                subclip.write_videofile(filename=tempFilePath)
-            elif fileType == "MP3":
-                subclip.write_audiofile(filename=tempFilePath)
-                
-            bbs.create_blob_from_path(
-                container_name=container,
-                blob_name=f"{fileSuffix}_{fileName}",
-                file_path=tempFilePath
-            )
+        # with tempfile.gettempdir() as dirpath:
+        fn = f"{filePrefix}_{fileName}"
+        tempFilePath = "/tmp/" + fn
+        # tempFilePath = tempfile.NamedTemporaryFile(suffix=f".{fileExtension}").name
+        logging.info(f"tempFilePath: {tempFilePath}")
+        if fileType == "MP4":
+            subclip.write_videofile(filename=tempFilePath)
+        elif fileType == "MP3":
+            subclip.write_audiofile(filename=tempFilePath)
+        logging.info("Clip has been saved locally")
+            
+        bbs.create_blob_from_path(
+            container_name=container,
+            blob_name=f"{filePrefix}_{fileName}",
+            file_path=tempFilePath
+        )
         B = datetime.now()
         logging.info(f"Uploaded, time taken: {B-A}")
 
