@@ -23,9 +23,9 @@ def orchestrator_function(context: df.DurableOrchestrationContext):
     container = qDict['container']
 
     ## Work out file type
-    if fileURL.endswith(".mp4"):
+    if fileURL.lower().endswith(".mp4"):
         fileType = "MP4"
-    elif fileURL.endswith(".mp3"):
+    elif fileURL.lower().endswith(".mp3") | fileURL.lower().endswith(".wav"):
         fileType = "MP3"
     else:
         fileType = "neither"

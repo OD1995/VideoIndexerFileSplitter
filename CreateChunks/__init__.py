@@ -35,7 +35,7 @@ def main(inputs: str) -> str:
     ## Create clip
     if fileType == "MP4":
         clip = VideoFileClip(sasURL)
-    elif fileType == "MP4":
+    elif fileType == "MP3":
         clip = AudioFileClip(sasURL)
     else:
         raise ValueError("wrong file type")
