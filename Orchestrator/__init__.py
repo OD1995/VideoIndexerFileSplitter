@@ -18,7 +18,7 @@ def orchestrator_function(context: df.DurableOrchestrationContext):
     logging.info("Orchestration started")
 
     ## Get data from the queue
-    logging.info("About to create dict from context._input 191")
+    logging.info("About to create dict from context._input")
     logging.info(f"type(context._input): {type(context._input)}")
     logging.info(f"context._input: {context._input}")
     ## For some reason, there is a " at the start and end in the string
