@@ -13,7 +13,11 @@ from moviepy.editor import VideoFileClip, AudioFileClip
 import os
 from datetime import datetime, timedelta
 from math import ceil
-from MyFunctions import get_SAS_URL
+from MyFunctions import (
+    get_SAS_URL,
+    get_VideoIndexerSplits_rows,
+    add_VideoIndexerSplits_row
+)
 import tempfile
 from urllib.parse import unquote
 import json
@@ -83,11 +87,15 @@ def main(inputDict: dict) -> str:
             raise ValueError(vem)
     ## Loop through the chunks
     for a in range(chunk_count):
+        A = datetime.now()
         ## Get prefix to use
         subclipPrefix = f"{a+1}of{chunk_count}"
         subclipFileName = f"{subclipPrefix}_{fileName}"
         logging.info(f"clip: {subclipPrefix}")
-        A = datetime.now()
+        ## Check how many times this clip has been created already (max 3 atts allowed)
+        visDF = get_VideoIndexerSplits_rows(
+            subclipFileName=subclipFileName
+        )
         ## If we're on the last subclip
         if a + 1 == chunk_count:
             subclipDurationSeconds = clip.duration - (a * chunk_length_secs)
@@ -111,7 +119,7 @@ def main(inputDict: dict) -> str:
         # )
         # logging.info(f"ff.cmd: {ff.cmd}")
         # ff.run()
-        if (_all_) or (X == a + 1):
+        if ((_all_) or (X == a + 1)) and (len(visDF) <= 2):
             logging.info(f'startSeconds: {startSeconds}')
             logging.info(f"tempClipFilePath: {tempClipFilePath}")
             logging.info(f"subclipDurationSeconds: {subclipDurationSeconds}")
@@ -129,6 +137,10 @@ def main(inputDict: dict) -> str:
             result = os.popen(ffmpegCommand).read()
             logging.info("command run")
             logging.info(f"result: {result}")
+            ## Add attempt to SQL
+            add_VideoIndexerSplits_row(
+                subclipFileName=subclipFileName
+            )
 
             ## Create subclip using moviepy
             # t_start = startSeconds
@@ -170,6 +182,11 @@ def main(inputDict: dict) -> str:
         
         else:
             logging.info("this ffmpeg run is not happening")
+
+            if len(visDF) >= 4:
+                logging.info("Reason: file has already been created 3 times")
+            if not _all_:
+                logging.info(f"Reason: re-do was requested for {X} not {a+1}")
 
         
     ## Delete original file from temporary storage
