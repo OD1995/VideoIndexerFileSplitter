@@ -17,16 +17,27 @@ from MyFunctions import get_SAS_URL
 import tempfile
 from urllib.parse import unquote
 import json
-import ffmpy
+# import ffmpy
 import subprocess
 
-def main(inputs: str) -> str:
+def main(inputDict: dict) -> str:
     ## Arguments
-    fileType,fileURL,container = inputs.split("__________")
+    fileType = inputDict['fileType']
+    fileURL = inputDict["fileURL"]
+    container = inputDict["container"]
+    selector = inputDict["selector"]
     logging.info(f"fileType: {fileType}")
     logging.info(f"fileURL: {fileURL}")
     logging.info(f"container: {container}")
-    logging.info("changes 11")
+    logging.info(f"selector: {selector}")
+    ## `selector` takes the format "XofY" or "ALL"
+    _all_ = selector == "ALL"
+    X = None
+    Y = None
+    if not _all_:
+        X = int(selector.split("of")[0])
+        Y = int(selector.split("of")[1])
+    logging.info("changes 12")
     ## Set file name to be used and get container it came from
     fileName = unquote(fileURL.split("/")[-1]) # (contains file extension)
     container = fileURL.split("/")[-2]
@@ -61,6 +72,15 @@ def main(inputs: str) -> str:
     ## Get number of chunks (files to be created)
     logging.info(f"clip.duration: {clip.duration}")
     chunk_count = ceil(clip.duration / chunk_length_secs)
+    ## If not _all_, make sure Y is the expected number
+    if not _all_:
+        if chunk_count != Y:
+            vem = (
+                f"Based on the selector passed ({selector}), "
+                f"there should be {Y} chunks, but instead there "
+                f"are {chunk_count} chunks."
+            )
+            raise ValueError(vem)
     ## Loop through the chunks
     for a in range(chunk_count):
         ## Get prefix to use
@@ -91,62 +111,65 @@ def main(inputs: str) -> str:
         # )
         # logging.info(f"ff.cmd: {ff.cmd}")
         # ff.run()
+        if (_all_) or (X == a + 1):
+            logging.info(f'startSeconds: {startSeconds}')
+            logging.info(f"tempClipFilePath: {tempClipFilePath}")
+            logging.info(f"subclipDurationSeconds: {subclipDurationSeconds}")
+            logging.info(f"fileOutPath: {fileOutPath}")
+            logging.info(f"startHMS: {startHMS}")
+            logging.info(f"endHMS: {endHMS}")
 
-        logging.info(f'startSeconds: {startSeconds}')
-        logging.info(f"tempClipFilePath: {tempClipFilePath}")
-        logging.info(f"subclipDurationSeconds: {subclipDurationSeconds}")
-        logging.info(f"fileOutPath: {fileOutPath}")
-        logging.info(f"startHMS: {startHMS}")
-        logging.info(f"endHMS: {endHMS}")
 
+            # # ffmpegCommand = f'./ffmpeg -ss {startSeconds} -i "{tempClipFilePath}" -t {subclipDurationSeconds} -c copy -bsf:a aac_adtstoasc "{fileOutPath}"'
+            # ffmpegCommand = f'./ffmpeg -ss {startSeconds} -i "{tempClipFilePath}" -t {subclipDurationSeconds} -bsf:a aac_adtstoasc -acodec copy -vcodec copy "{fileOutPath}"'
+            ffmpegCommand = f'./ffmpeg -i "{tempClipFilePath}" -ss {startHMS} -to {endHMS} -c copy "{fileOutPath}"'
+            logging.info(f"ffmpegCommand: {ffmpegCommand}")
+            # p = subprocess.Popen(ffmpegCommand)
+            # p.wait()
+            result = os.popen(ffmpegCommand).read()
+            logging.info("command run")
+            logging.info(f"result: {result}")
 
-        # # ffmpegCommand = f'./ffmpeg -ss {startSeconds} -i "{tempClipFilePath}" -t {subclipDurationSeconds} -c copy -bsf:a aac_adtstoasc "{fileOutPath}"'
-        # ffmpegCommand = f'./ffmpeg -ss {startSeconds} -i "{tempClipFilePath}" -t {subclipDurationSeconds} -bsf:a aac_adtstoasc -acodec copy -vcodec copy "{fileOutPath}"'
-        ffmpegCommand = f'./ffmpeg -i "{tempClipFilePath}" -ss {startHMS} -to {endHMS} -c copy "{fileOutPath}"'
-        logging.info(f"ffmpegCommand: {ffmpegCommand}")
-        # p = subprocess.Popen(ffmpegCommand)
-        # p.wait()
-        result = os.popen(ffmpegCommand).read()
-        logging.info("command run")
-        logging.info(f"result: {result}")
-
-        ## Create subclip using moviepy
-        # t_start = startSeconds
-        # t_end = startSeconds+subclipDurationSeconds
-        # logging.info(f"t_start: {t_start}")
-        # logging.info(f"t_end: {t_end}")
-        # subclip = clip.subclip(
-        #     t_start=t_start,
-        #     t_end=t_end
-        # )
-        # logging.info("subclip created")
-        # # temp_file_path = tempfile.gettempdir() + "/temp-audio.m4a"
-        # temp_file_path = "/tmp/temp-audio.m4a"
-        # ## Save to path
-        # subclip.write_videofile(
-        #     filename=fileOutPath,
-        #     verbose=False,
-        #     logger=None,
-        #     temp_audiofile=temp_file_path,
-        #     remove_temp=True,
-        #     audio_codec="aac"
-        # )
-        # logging.info("subclip written to file")
-        # subclip.close()
-        # logging.info("subclip closed")
-        contentType = "video/mp4" if fileType == "MP4" else "audio/mpeg3"
-        bbs.create_blob_from_path(
-            container_name=container,
-            blob_name=subclipFileName,
-            file_path=fileOutPath,
-            content_settings=ContentSettings(
-                content_type=contentType
+            ## Create subclip using moviepy
+            # t_start = startSeconds
+            # t_end = startSeconds+subclipDurationSeconds
+            # logging.info(f"t_start: {t_start}")
+            # logging.info(f"t_end: {t_end}")
+            # subclip = clip.subclip(
+            #     t_start=t_start,
+            #     t_end=t_end
+            # )
+            # logging.info("subclip created")
+            # # temp_file_path = tempfile.gettempdir() + "/temp-audio.m4a"
+            # temp_file_path = "/tmp/temp-audio.m4a"
+            # ## Save to path
+            # subclip.write_videofile(
+            #     filename=fileOutPath,
+            #     verbose=False,
+            #     logger=None,
+            #     temp_audiofile=temp_file_path,
+            #     remove_temp=True,
+            #     audio_codec="aac"
+            # )
+            # logging.info("subclip written to file")
+            # subclip.close()
+            # logging.info("subclip closed")
+            contentType = "video/mp4" if fileType == "MP4" else "audio/mpeg3"
+            bbs.create_blob_from_path(
+                container_name=container,
+                blob_name=subclipFileName,
+                file_path=fileOutPath,
+                content_settings=ContentSettings(
+                    content_type=contentType
+                )
             )
-        )
-        ## Delete created file from temporary storage
-        os.remove(fileOutPath)
-        B = datetime.now()
-        logging.info(f"{subclipPrefix} uploaded, time taken: {B-A}")
+            ## Delete created file from temporary storage
+            os.remove(fileOutPath)
+            B = datetime.now()
+            logging.info(f"{subclipPrefix} uploaded, time taken: {B-A}")
+        
+        else:
+            logging.info("this ffmpeg run is not happening")
 
         
     ## Delete original file from temporary storage

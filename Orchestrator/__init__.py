@@ -23,9 +23,10 @@ def orchestrator_function(context: df.DurableOrchestrationContext):
     logging.info(f"context._input: {context._input}")
     ## For some reason, there is a " at the start and end in the string
     ##    [1:-1] removes this problem
-    fileURL,container = context._input[1:-1].split("__________")
+    fileURL,container,selector = context._input[1:-1].split("__________")
     logging.info(f"fileURL: {fileURL}")
     logging.info(f"container: {container}")
+    logging.info(f"selector: {selector}")
     ## Work out file type
     if fileURL.lower().endswith(".mp4"):
         fileType = "MP4"
@@ -37,7 +38,12 @@ def orchestrator_function(context: df.DurableOrchestrationContext):
 
     result = yield context.call_activity(
         'CreateChunks',
-        f"{fileType}__________{fileURL}__________{container}"
+        {
+            "fileType" : fileType,
+            "fileURL" : fileURL,
+            "container" : container,
+            "selector" : selector
+        }
     )
 
     return result
